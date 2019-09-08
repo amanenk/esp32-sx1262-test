@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.env.linux": {
+        "PATH": "/home/andrii/.platformio/penv/bin:/home/andrii/.platformio/penv:/home/andrii/esp/xtensa-esp32-elf/bin:/home/andrii/go/bin:/home/andrii/.local/bin:/home/andrii/esp/xtensa-esp32-elf/bin:/home/andrii/go/bin:/home/andrii/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/andrii/.dotnet/tools:/home/andrii/.dotnet/tools",
+        "PLATFORMIO_CALLER": "vscode"
+    }
+}
