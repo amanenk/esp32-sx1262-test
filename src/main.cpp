@@ -10,11 +10,9 @@
 #define LORAWAN_ADR_OFF 0 /**< LoRaWAN Adaptive Data Rate disabled. */
 
 #define LORAWAN_APP_DATA_BUFF_SIZE 64  /**< Size of the data to be transmitted. */
-#define LORAWAN_APP_TX_DUTYCYCLE 10000 /**< Defines the application data transmission duty cycle. 10s, value in [ms]. */
-#define APP_TX_DUTYCYCLE_RND 1000      /**< Defines a random delay for application data transmission duty cycle. 1s, value in [ms]. */
+#define LORAWAN_APP_TX_DUTYCYCLE 30000 /**< Defines the application data transmission duty cycle. 10s, value in [ms]. */
+#define APP_TX_DUTYCYCLE_RND 5000      /**< Defines a random delay for application data transmission duty cycle. 1s, value in [ms]. */
 #define JOINREQ_NBTRIALS 3             /**< Number of trials for the join request. */
-
-#define REGION_EU868
 
 /**@brief Define activation procedure here
  * More information https://www.thethingsnetwork.org/forum/t/what-is-the-difference-between-otaa-and-abp-devices/2723
@@ -39,8 +37,6 @@ int PIN_LORA_MISO = 19;  // LORA SPI MISO
 int PIN_LORA_DIO_1 = 21; // LORA DIO_1
 int PIN_LORA_BUSY = 22;  // LORA SPI BUSY
 int PIN_LORA_MOSI = 23;  // LORA SPI MOSI
-int RADIO_TXEN = 26;     // LORA ANTENNA TX ENABLE
-int RADIO_RXEN = 27;     // LORA ANTENNA RX ENABLE
 
 // Foward declaration
 static void lorawan_has_joined_handler(void);
@@ -48,6 +44,7 @@ static void lorawan_rx_handler(lmh_app_data_t *app_data);
 static void lorawan_confirm_class_handler(DeviceClass_t Class);
 static void send_lora_frame(void);
 static uint32_t timers_init(void);
+uint8_t counter = 0;
 
 // APP_TIMER_DEF(lora_tx_timer_id);                                              ///< LoRa tranfer timer instance.
 TimerEvent_t appTimer;                                                        ///< LoRa tranfer timer instance.
@@ -77,9 +74,7 @@ void setup()
   hwConfig.PIN_LORA_DIO_1 = PIN_LORA_DIO_1; // LORA DIO_1
   hwConfig.PIN_LORA_BUSY = PIN_LORA_BUSY;   // LORA SPI BUSY
   hwConfig.PIN_LORA_MOSI = PIN_LORA_MOSI;   // LORA SPI MOSI
-  hwConfig.RADIO_TXEN = RADIO_TXEN;         // LORA ANTENNA TX ENABLE
-  hwConfig.RADIO_RXEN = RADIO_RXEN;         // LORA ANTENNA RX ENABLE
-  hwConfig.USE_DIO2_ANT_SWITCH = false;     // Example uses an eByte E22 module which uses RXEN and TXEN pins as antenna control
+  hwConfig.USE_DIO2_ANT_SWITCH = true;      // Example uses an eByte E22 module which uses RXEN and TXEN pins as antenna control
   hwConfig.USE_DIO3_TCXO = true;            // Example uses an eByte E22 module which uses DIO3 to control oscillator voltage
   hwConfig.USE_DIO3_ANT_SWITCH = false;     // Only Insight ISP4520 module uses DIO3 as antenna control
 
@@ -121,7 +116,7 @@ void loop()
   Radio.IrqProcess();
 
   // We are on FreeRTOS, give other tasks a chance to run
-  // delay(100);
+  delay(10);
 }
 
 /**@brief LoRa function for handling HasJoined event.
@@ -135,7 +130,6 @@ static void lorawan_has_joined_handler(void)
 
 #endif
   lmh_class_request(CLASS_A);
-
   TimerSetValue(&appTimer, LORAWAN_APP_TX_DUTYCYCLE);
   TimerStart(&appTimer);
   // app_timer_start(lora_tx_timer_id, APP_TIMER_TICKS(LORAWAN_APP_TX_DUTYCYCLE), NULL);
@@ -204,21 +198,22 @@ static void send_lora_frame(void)
     return;
   }
 
+  // if (digitalRead(PIN_LORA_BUSY) == 1)
+  // {
+  //   Serial.println("lora device is budy skipping sending frame");
+  //   return;
+  // }
+
   uint32_t i = 0;
   m_lora_app_data.port = LORAWAN_APP_PORT;
-  m_lora_app_data.buffer[i++] = 'H';
-  m_lora_app_data.buffer[i++] = 'e';
-  m_lora_app_data.buffer[i++] = 'l';
-  m_lora_app_data.buffer[i++] = 'l';
-  m_lora_app_data.buffer[i++] = 'o';
-  m_lora_app_data.buffer[i++] = ' ';
-  m_lora_app_data.buffer[i++] = 'w';
-  m_lora_app_data.buffer[i++] = 'o';
-  m_lora_app_data.buffer[i++] = 'r';
-  m_lora_app_data.buffer[i++] = 'l';
-  m_lora_app_data.buffer[i++] = 'd';
-  m_lora_app_data.buffer[i++] = '!';
+  m_lora_app_data.buffer[i++] = counter;
   m_lora_app_data.buffsize = i;
+
+  counter++;
+  if (counter >= 100)
+  {
+    counter = 0;
+  }
 
   lmh_error_status error = lmh_send(&m_lora_app_data, LMH_UNCONFIRMED_MSG);
   if (error == LMH_SUCCESS)
@@ -235,6 +230,7 @@ static void tx_lora_periodic_handler(void)
   TimerStart(&appTimer);
   Serial.println("Sending frame");
   send_lora_frame();
+  TimerStart(&appTimer);
 }
 
 /**@brief Function for the Timer initialization.
@@ -244,19 +240,8 @@ static void tx_lora_periodic_handler(void)
 static uint32_t timers_init(void)
 {
   appTimer.timerNum = 3;
+  appTimer.oneShot = true;
   TimerInit(&appTimer, tx_lora_periodic_handler);
-
-  // ret_code_t err_code;
-
-  // APP_SCHED_INIT(SCHED_MAX_EVENT_DATA_SIZE, SCHED_QUEUE_SIZE);
-
-  // // Initialize timer module.
-  // err_code = app_timer_init();
-  // VERIFY_SUCCESS(err_code);
-
-  // // Initialize timers
-  // err_code = app_timer_create(&lora_tx_timer_id, APP_TIMER_MODE_REPEATED, tx_lora_periodic_handler);
-  // VERIFY_SUCCESS(err_code);
 
   return 0;
 }

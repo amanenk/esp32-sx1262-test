@@ -1,5 +1,4 @@
 Dorji board:
-```
-DIO2 - TXENABLE
-SW - RXENABlE
-```
+
+http://www.dorji.com/docs/data/DRF1262G.pdf
+https://www.psemi.com/pdf/datasheets/pe4259ds.pdf
